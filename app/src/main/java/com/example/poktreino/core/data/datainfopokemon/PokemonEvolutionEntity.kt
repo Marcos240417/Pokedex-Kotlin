@@ -1,0 +1,12 @@
+package com.example.poktreino.core.data.datainfopokemon
+
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+
+@Entity(tableName = "pokemon_evolutions")
+data class PokemonEvolutionEntity(
+    @PrimaryKey(autoGenerate = true)
+    val id: Int = 0,
+    val pokemonId: Int,
+    val nomeEvolucao: String
+)
