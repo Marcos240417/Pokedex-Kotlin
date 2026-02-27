@@ -1,10 +1,11 @@
 package com.example.poktreino.core.di
 
+import com.example.poktreino.ui.viewmodel.PokemonDetailViewModel
 import com.example.poktreino.core.data.datalocal.PoketreinoDatabase
 import com.example.poktreino.core.data.remote.PokeApiService
-import com.example.poktreino.core.data.repository.PokemonRepositoryImpl
-import com.example.poktreino.core.domain.repository.PokemonRepository
-import com.example.poktreino.ui.viewmodel.PokemonDetailViewModel
+import com.example.poktreino.core.data.domain.repository.PokemonRepositoryImpl
+import com.example.poktreino.core.data.domain.repository.PokemonRepository
+
 import com.example.poktreino.ui.viewmodel.PokemonViewModel
 import org.koin.core.module.dsl.viewModel
 import org.koin.dsl.module
