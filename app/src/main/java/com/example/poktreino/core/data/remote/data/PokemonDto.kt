@@ -11,7 +11,7 @@ data class PokemonDto(
     val types: List<Type>?,
     val moves: List<Move>?,
     val stats: List<Stat>?,
-    val evo: List<EvolutionChain>? // nullable
+    val evo: List<EvolutionChain>?
 )
 
 data class Sprites(

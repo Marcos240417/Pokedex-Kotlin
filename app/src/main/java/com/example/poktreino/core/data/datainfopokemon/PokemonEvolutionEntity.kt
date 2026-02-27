@@ -8,5 +8,6 @@ data class PokemonEvolutionEntity(
     @PrimaryKey(autoGenerate = true)
     val id: Int = 0,
     val pokemonId: Int,
+    val pokemonEvolucaoId: Int,
     val nomeEvolucao: String
 )

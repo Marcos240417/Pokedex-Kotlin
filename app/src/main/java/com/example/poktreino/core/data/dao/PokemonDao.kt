@@ -15,8 +15,6 @@ import kotlinx.coroutines.flow.Flow
 @Dao
 interface PokemonDao {
 
-    // --- Inserções (Escrita) ---
-
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertPokemon(pokemon: PokemonEntity)
 
@@ -29,10 +27,6 @@ interface PokemonDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun insertEvolutions(evolutions: List<PokemonEvolutionEntity>)
 
-    /**
-     * @Transaction garante a atomicidade da escrita.
-     * Ou salva o pacote completo do Pokémon, ou nada é salvo em caso de erro.
-     */
     @Transaction
     suspend fun insertFullPokemon(
         pokemon: PokemonEntity,
@@ -46,17 +40,9 @@ interface PokemonDao {
         insertEvolutions(evolutions)
     }
 
-    // --- Consultas (Leitura) ---
-
-    // Retorna a lista simplificada (usada na Home/Listagem)
     @Query("SELECT * FROM pokemons ORDER BY pokemonId ASC")
     fun getAllPokemons(): Flow<List<PokemonEntity>>
 
-    /**
-     * Retorna o Pokémon COMPLETO usando @Relation.
-     * @Transaction aqui é necessário porque o Room executa múltiplas consultas
-     * ocultas para reunir os dados das 4 tabelas.
-     */
     @Transaction
     @Query("SELECT * FROM pokemons WHERE pokemonId = :id")
     fun getPokemonWithDetails(id: Int): Flow<PokemonWithDetails?>
@@ -64,8 +50,4 @@ interface PokemonDao {
     @Query("SELECT * FROM pokemons WHERE pokemonId = :id")
     suspend fun getPokemonById(id: Int): PokemonEntity?
 
-    // --- Manutenção ---
-
-    @Query("DELETE FROM pokemons")
-    suspend fun clearAll()
 }

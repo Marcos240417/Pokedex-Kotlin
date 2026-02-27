@@ -4,7 +4,6 @@ import com.example.poktreino.core.data.datainfopokemon.*
 import com.example.poktreino.core.data.datalocal.PokemonEntity
 import com.example.poktreino.core.data.remote.data.PokemonDto
 
-// 1. Dados Básicos
 fun PokemonDto.toEntity(): PokemonEntity {
     return PokemonEntity(
         pokemonId = this.id,
@@ -17,7 +16,6 @@ fun PokemonDto.toEntity(): PokemonEntity {
     )
 }
 
-// 2. Status
 fun PokemonDto.toStatsEntities(): List<PokemonStatEntity> {
     return this.stats?.map { statDto ->
         PokemonStatEntity(
@@ -28,8 +26,6 @@ fun PokemonDto.toStatsEntities(): List<PokemonStatEntity> {
     } ?: emptyList()
 }
 
-
-// 3. Movimentos
 fun PokemonDto.toMovesEntities(): List<PokemonMoveEntity> {
     return this.moves?.map { moveDto ->
         PokemonMoveEntity(
@@ -41,15 +37,26 @@ fun PokemonDto.toMovesEntities(): List<PokemonMoveEntity> {
     } ?: emptyList()
 }
 
-
-// 4. Evoluções (Corrigido para usar 'evo' e 'flatMap')
 fun PokemonDto.toEvolutionEntities(): List<PokemonEvolutionEntity> {
-    return this.evo?.flatMap { chain ->
-        chain.evolution.map { namedResource ->
-            PokemonEvolutionEntity(
-                pokemonId = this.id,
-                nomeEvolucao = namedResource.name.replaceFirstChar { it.uppercase() }
-            )
+    val evolutions = mutableListOf<PokemonEvolutionEntity>()
+
+    this.evo?.forEach { chain ->
+        chain.evolution.forEach { namedResource ->
+            val extractedId = namedResource.url
+                .trimEnd('/')
+                .substringAfterLast("/")
+                .toIntOrNull() ?: return@forEach
+
+            if (extractedId != this.id) {
+                evolutions.add(
+                    PokemonEvolutionEntity(
+                        pokemonId = this.id,
+                        pokemonEvolucaoId = extractedId,
+                        nomeEvolucao = namedResource.name.replaceFirstChar { it.uppercase() }
+                    )
+                )
+            }
         }
-    } ?: emptyList()
+    }
+    return evolutions
 }

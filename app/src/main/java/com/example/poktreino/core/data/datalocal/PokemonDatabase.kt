@@ -29,17 +29,14 @@ abstract class PoketreinoDatabase : RoomDatabase() {
         @Volatile
         private var INSTANCE: PoketreinoDatabase? = null
 
-        /**
-         * Padrão Singleton: Garante que apenas uma instância do banco exista.
-         */
         fun getDatabase(context: Context): PoketreinoDatabase {
             return INSTANCE ?: synchronized(this) {
                 val instance = Room.databaseBuilder(
                     context.applicationContext,
                     PoketreinoDatabase::class.java,
-                    "poketreino_db" // Nome do ficheiro SQLite no telemóvel
+                    "poketreino_db"
                 )
-                    .fallbackToDestructiveMigration() // Útil durante o desenvolvimento
+                    .fallbackToDestructiveMigration(false)
                     .build()
                 INSTANCE = instance
                 instance
