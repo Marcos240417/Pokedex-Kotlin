@@ -2,60 +2,53 @@ package com.example.poktreino.ui.viewmodel
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import androidx.paging.PagingData
+import androidx.paging.cachedIn
 import com.example.poktreino.core.data.datalocal.PokemonEntity
 import com.example.poktreino.core.data.domain.repository.PokemonRepository
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.FlowPreview
 import kotlinx.coroutines.flow.*
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 class PokemonViewModel(
     private val repository: PokemonRepository
 ) : ViewModel() {
-    private val _uiState = MutableStateFlow<PokemonUiState<List<PokemonEntity>>>(PokemonUiState.Loading)
-    val uiState: StateFlow<PokemonUiState<List<PokemonEntity>>> = _uiState.asStateFlow()
 
-    private var currentOffset = 0
-    private var isFetching = false
-    private var canLoadMore = true
+    private val _searchQuery = MutableStateFlow("")
+    val searchQuery = _searchQuery.asStateFlow()
+
+    private val mutex = Mutex()
+
+    @OptIn(FlowPreview::class, ExperimentalCoroutinesApi::class)
+    val pokemonPagingData: Flow<PagingData<PokemonEntity>> = _searchQuery
+        .debounce(300)
+        .distinctUntilChanged()
+        .flatMapLatest { query ->
+            repository.getPagedPokemons(query)
+        }
+        .flowOn(Dispatchers.IO)
+        .cachedIn(viewModelScope)
 
     init {
-        observePokemonList()
+        fetchMorePokemons(0)
     }
 
-    private fun observePokemonList() {
-        viewModelScope.launch (Dispatchers.IO){
-            repository.getPokemonList()
-                .catch { _uiState.value = PokemonUiState.Error("Erro ao acessar banco local") }
-                .collect { list ->
-                    if (list.isNotEmpty() || !isFetching) {
-                        _uiState.value = PokemonUiState.Success(list)
-                        currentOffset = list.size
-                    }
+    fun fetchMorePokemons(currentCount: Int) {
+        viewModelScope.launch(Dispatchers.IO) {
+            if (mutex.isLocked) return@launch
 
-                    if (list.isEmpty() && !isFetching && canLoadMore) {
-                        fetchPokemons()
-                    }
-                }
+            mutex.withLock {
+                // Usa o tamanho real da lista como offset para evitar duplicados
+                repository.syncPokemonData(limit = 20, offset = currentCount)
+            }
         }
     }
 
-    fun fetchPokemons() {
-        if (isFetching || !canLoadMore) return
-
-        viewModelScope.launch (Dispatchers.IO){
-            isFetching = true
-            val result = withContext(Dispatchers.IO) {
-                repository.syncPokemonData(limit = 20, offset = currentOffset)
-            }
-
-            result.onSuccess {
-            }.onFailure { error ->
-                if (_uiState.value is PokemonUiState.Loading) {
-                    _uiState.value = PokemonUiState.Error("Falha na sincronização: ${error.message}")
-                }
-            }
-            isFetching = false
-        }
+    fun onSearchChanged(newQuery: String) {
+        _searchQuery.value = newQuery
     }
 }
