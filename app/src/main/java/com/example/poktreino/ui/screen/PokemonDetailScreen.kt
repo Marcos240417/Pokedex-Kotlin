@@ -283,74 +283,114 @@ fun EvolutionSection(evolutions: List<PokemonEvolutionEntity>, onEvolutionClick:
 
 
 @Composable
-fun StatRow(label: String, value: Int, maxTarget: Float) {
+fun StatRow(
+    label: String,
+    value: Int,
+    maxTarget: Float = 255f // Valor máximo comum em stats de Pokémon
+) {
+    // CORES OTIMIZADAS PARA O FUNDO AZUL ESCURO
     val statColor = remember(label) {
         when (label.uppercase()) {
-            "HP" -> Color(0xFFFF0000)
-            "ATTACK" -> Color(0xFFF08030)
-            "DEFENSE" -> Color(0xFFF8D030)
-            "SPECIAL-ATTACK" -> Color(0xFF6890F0)
-            "SPECIAL-DEFENSE" -> Color(0xFF78C850)
-            "SPEED" -> Color(0xFFF85888)
-            else -> Color(0xFF4CAF50)
+            "HP" -> Color(0xFFFF4D4D)              // Vermelho Intenso
+            "ATTACK" -> Color(0xFFFFA500)          // Laranja Fogo
+            "DEFENSE" -> Color(0xFFFACC15)         // Amarelo Elétrico
+            "SPECIAL-ATTACK" -> Color(0xFF60A5FA)  // Azul Água/Especial
+            "SPECIAL-DEFENSE" -> Color(0xFF4ADE80) // Verde Grama
+            "SPEED" -> Color(0xFFF472B6)           // Rosa Velocidade
+            else -> Color(0xFF94A3B8)
         }
     }
 
+    // LÓGICA DE ANIMAÇÃO
     var animationStarted by remember { mutableStateOf(false) }
     val animatedProgress by animateFloatAsState(
-        targetValue = if (animationStarted) value / maxTarget else 0f,
-        animationSpec = tween(1000, easing = FastOutSlowInEasing),
-        label = ""
+        targetValue = if (animationStarted) (value / maxTarget).coerceIn(0f, 1f) else 0f,
+        animationSpec = tween(1200, easing = FastOutSlowInEasing),
+        label = "StatProgress"
     )
 
-    LaunchedEffect(Unit) { animationStarted = true }
+    LaunchedEffect(Unit) {
+        animationStarted = true
+    }
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
-            .padding(vertical = 6.dp),
+            .padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically
     ) {
+        // RÓTULO COM ESPAÇAMENTO FIXO PARA ALINHAMENTO
         Text(
             text = label.uppercase(),
-            modifier = Modifier.weight(2.5f),
-            style = MaterialTheme.typography.labelSmall,
-            color = Color.White.copy(alpha = 0.6f),
-            fontWeight = FontWeight.Bold
+            modifier = Modifier.weight(2.2f),
+            style = MaterialTheme.typography.labelSmall.copy(
+                letterSpacing = 1.sp,
+                shadow = androidx.compose.ui.graphics.Shadow(
+                    color = Color.Black.copy(0.3f),
+                    offset = androidx.compose.ui.geometry.Offset(2f, 2f),
+                    blurRadius = 4f
+                )
+            ),
+            color = Color.White.copy(alpha = 0.7f),
+            fontWeight = FontWeight.ExtraBold
         )
 
-        LinearProgressIndicator(
-            progress = { animatedProgress },
+        // BARRA DE PROGRESSO COM EFEITO NEON
+        Box(
             modifier = Modifier
                 .weight(4f)
-                .height(10.dp)
-                .clip(CircleShape),
-            strokeCap = StrokeCap.Round,
+                .height(12.dp)
+                .clip(CircleShape)
+                .background(Color.White.copy(alpha = 0.05f)) // Fundo da trilha sutil
+        ) {
+            LinearProgressIndicator(
+                progress = { animatedProgress },
+                modifier = Modifier.fillMaxSize(),
+                strokeCap = StrokeCap.Round,
+                color = statColor,
+                trackColor = Color.Transparent // Usamos o fundo do Box para transparência
+            )
+        }
 
-            color = statColor,
-            trackColor = Color.White.copy(alpha = 0.1f)
-        )
-
+        // VALOR NUMÉRICO EM DESTAQUE
         Text(
             text = value.toString().padStart(3, '0'),
-            modifier = Modifier.padding(start = 12.dp),
+            modifier = Modifier.width(45.dp).padding(start = 10.dp),
             style = MaterialTheme.typography.bodyMedium,
             color = Color.White,
-            fontWeight = FontWeight.Black
+            fontWeight = FontWeight.Black,
+            textAlign = androidx.compose.ui.text.style.TextAlign.End
         )
     }
 }
-
-
 @Composable
-fun DetailInfoItem(label: String, value: String) {
-    Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(value, color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+fun DetailInfoItem(
+    label: String,
+    value: String,
+    modifier: Modifier = Modifier
+) {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = modifier
+    ) {
+        // Valor principal (ex: 8.5 kg)
         Text(
-            label,
-            color = Color.White.copy(alpha = 0.5f),
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Bold
+            text = value,
+            color = Color.White,
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Black, // Peso máximo para destaque
+            letterSpacing = 0.5.sp
+        )
+
+        Spacer(modifier = Modifier.height(4.dp))
+
+        // Rótulo (ex: PESO)
+        Text(
+            text = label.uppercase(),
+            color = Color.White.copy(alpha = 0.5f), // Opacidade reduzida para contraste
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            style = MaterialTheme.typography.labelSmall
         )
     }
 }
