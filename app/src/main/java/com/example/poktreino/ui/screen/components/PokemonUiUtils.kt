@@ -1,5 +1,7 @@
 package com.example.poktreino.ui.screen.components
 
+import androidx.compose.animation.core.*
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.padding
@@ -17,15 +19,18 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.composed
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
-@Composable
-fun getGradientForType(type: String): Brush {
-    val typeColor = when (type.lowercase()) {
+// Mantenha o nome original, mas mude o retorno para Color
+fun getGradientForType(type: String): Color {
+    return when (type.lowercase()) {
         "grass" -> Color(0xFF78C850)
         "fire" -> Color(0xFFF08030)
         "water" -> Color(0xFF6890F0)
@@ -46,12 +51,6 @@ fun getGradientForType(type: String): Brush {
         "normal" -> Color(0xFFA8A878)
         else -> Color(0xFF95A5A6)
     }
-
-    return Brush.horizontalGradient(
-        colors = listOf(typeColor.copy(alpha = 0.5f), Color(0xFF121212)),
-        startX = 0f,
-        endX = 600f
-    )
 }
 
 @Composable
@@ -78,4 +77,32 @@ fun TypeBadge(type: String) {
             Text(type.uppercase(), style = MaterialTheme.typography.labelSmall, color = Color.White)
         }
     }
+}
+
+
+fun Modifier.shimmerEffect(): Modifier = composed {
+    val transition = rememberInfiniteTransition(label = "shimmer")
+    val translateAnim by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1000f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(durationMillis = 1200, easing = LinearEasing),
+            repeatMode = RepeatMode.Restart
+        ),
+        label = "shimmerTranslation"
+    )
+
+    val shimmerColors = listOf(
+        Color.White.copy(alpha = 0.05f),
+        Color.White.copy(alpha = 0.2f),
+        Color.White.copy(alpha = 0.05f),
+    )
+
+    val brush = Brush.linearGradient(
+        colors = shimmerColors,
+        start = Offset.Zero,
+        end = Offset(x = translateAnim, y = translateAnim)
+    )
+
+    background(brush)
 }
