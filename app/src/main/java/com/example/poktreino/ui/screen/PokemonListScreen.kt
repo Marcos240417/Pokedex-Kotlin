@@ -5,15 +5,14 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.*
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
@@ -23,15 +22,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.paging.LoadState
+import androidx.paging.compose.collectAsLazyPagingItems
+import androidx.paging.compose.itemKey
 import com.example.poktreino.R
 import com.example.poktreino.core.data.datalocal.PokemonEntity
-import com.example.poktreino.ui.viewmodel.PokemonUiState
 import com.example.poktreino.ui.viewmodel.PokemonViewModel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -43,157 +42,145 @@ fun PokemonListScreen(
     viewModel: PokemonViewModel = koinViewModel(),
     onPokemonClick: (Int) -> Unit
 ) {
-    val state by viewModel.uiState.collectAsState()
-    var searchQuery by remember { mutableStateOf("") }
-    var isRefreshing by remember { mutableStateOf(false) }
+    val pagingItems = viewModel.pokemonPagingData.collectAsLazyPagingItems()
+    val searchQuery by viewModel.searchQuery.collectAsState()
+    var selectedType by remember { mutableStateOf<String?>(null) }
 
     val listState = rememberLazyListState()
-    val coroutineScope = rememberCoroutineScope()
-    val haptic = LocalHapticFeedback.current
+    val scope = rememberCoroutineScope()
 
-    val showBackToTopButton by remember {
-        derivedStateOf { listState.firstVisibleItemIndex > 0 }
-    }
+    val isInitialLoading = pagingItems.loadState.refresh is LoadState.Loading
+    val isNotLoading = pagingItems.loadState.refresh is LoadState.NotLoading
+    val showButton by remember { derivedStateOf { listState.firstVisibleItemIndex > 0 } }
 
-    val shouldLoadMore by remember {
-        derivedStateOf {
-            val layoutInfo = listState.layoutInfo
-            val totalItems = layoutInfo.totalItemsCount
-            val lastVisible = layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0
-            lastVisible >= totalItems - 5 && totalItems > 0
-        }
-    }
-
-    LaunchedEffect(shouldLoadMore) {
-        if (shouldLoadMore && searchQuery.isEmpty() && state is PokemonUiState.Success) {
-            viewModel.fetchPokemons()
-        }
-    }
-
-    val filteredPokemons = remember(state, searchQuery) {
-        val currentState = state
-        if (currentState is PokemonUiState.Success<List<PokemonEntity>>) {
-            val list = currentState.data
-            if (searchQuery.isEmpty()) list
-            else list.filter {
-                it.nome.contains(searchQuery, ignoreCase = true) ||
-                        it.pokemonId.toString() == searchQuery
-            }
-        } else {
-            emptyList()
-        }
-    }
-
-    val backgroundGradient = Brush.verticalGradient(
-        colors = listOf(Color(0xFF1E1E2E), Color(0xFF11111B))
+    val animeBackground = Brush.verticalGradient(
+        colors = listOf(Color(0xFF0A1221), Color(0xFF1B3D7B))
     )
 
     Scaffold(
         containerColor = Color.Transparent,
         floatingActionButton = {
             AnimatedVisibility(
-                visible = showBackToTopButton,
+                visible = showButton,
                 enter = fadeIn() + scaleIn(),
                 exit = fadeOut() + scaleOut()
             ) {
                 FloatingActionButton(
-                    onClick = {
-                        haptic.performHapticFeedback(HapticFeedbackType.LongPress)
-                        coroutineScope.launch { listState.animateScrollToItem(0) }
-                    },
+                    onClick = { scope.launch { listState.animateScrollToItem(0) } },
                     containerColor = Color(0xFFE91E63),
                     contentColor = Color.White,
                     shape = CircleShape
                 ) {
-                    Icon(Icons.Default.ArrowUpward, contentDescription = "Voltar ao topo")
+                    Icon(Icons.Default.KeyboardArrowUp, contentDescription = "Voltar ao topo")
                 }
             }
         }
     ) { padding ->
-        Box(
-            modifier = Modifier
-                .fillMaxSize()
-                .background(backgroundGradient)
-                .padding(padding)
-        ) {
+        Box(modifier = Modifier.fillMaxSize().background(animeBackground).padding(padding)) {
             Column {
                 SearchBarTop(
                     query = searchQuery,
-                    onQueryChange = { searchQuery = it },
-                    onClearQuery = { searchQuery = "" }
+                    onQueryChange = { viewModel.onSearchChanged(it) },
+                    onClearQuery = { viewModel.onSearchChanged("") }
                 )
 
                 PullToRefreshBox(
-                    isRefreshing = isRefreshing,
-                    onRefresh = {
-                        coroutineScope.launch {
-                            isRefreshing = true
-                            viewModel.fetchPokemons()
-                            delay(1000)
-                            isRefreshing = false
-                        }
-                    },
+                    isRefreshing = isInitialLoading,
+                    onRefresh = { pagingItems.refresh() },
                     modifier = Modifier.fillMaxSize()
                 ) {
-                    when (val currentState = state) {
-                        is PokemonUiState.Loading -> {
-                            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                                CircularProgressIndicator(color = Color(0xFFE91E63))
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        contentPadding = PaddingValues(bottom = 80.dp)
+                    ) {
+                        // 1. CABEÇALHO COM KEYS FIXAS (Evita reset de scroll)
+                        if (searchQuery.isEmpty()) {
+                            item(key = "header_banner") {
+                                BannerCarousel(imageIds = listOf(
+                                    R.drawable.poke1, R.drawable.poke2, R.drawable.poke3, R.drawable.poke4
+                                ))
+                            }
+
+                            item(key = "header_filters") {
+                                TypeFilterBar(
+                                    selectedType = selectedType,
+                                    onTypeSelected = { selectedType = it }
+                                )
+                            }
+
+                            if (pagingItems.itemCount > 0) {
+                                item(key = "header_featured") {
+                                    pagingItems[0]?.let { destaque ->
+                                        FeaturedCard(
+                                            pokemon = destaque,
+                                            onItemClick = { onPokemonClick(it) }
+                                        )
+                                    }
+                                }
                             }
                         }
-                        is PokemonUiState.Error -> {
-                            Box(Modifier.fillMaxSize(), Alignment.Center) {
-                                Text(currentState.message, color = Color.White)
+
+                        // 2. LISTAGEM PRINCIPAL
+                        when {
+                            // Se a lista estiver vazia e carregando o primeiro lote
+                            isInitialLoading && pagingItems.itemCount == 0 -> {
+                                items(10, key = { "shimmer_$it" }) { PokemonItemPlaceholder() }
                             }
-                        }
-                        is PokemonUiState.Success -> {
-                            if (filteredPokemons.isEmpty() && searchQuery.isNotEmpty()) {
-                                EmptySearchResult(searchQuery)
-                            } else {
-                                LazyColumn(
-                                    state = listState,
-                                    modifier = Modifier.fillMaxSize(),
-                                    contentPadding = PaddingValues(16.dp),
-                                    // CORREÇÃO: Espaçamento aumentado para 16.dp entre cards maiores
-                                    verticalArrangement = Arrangement.spacedBy(16.dp)
-                                ) {
-                                    if (searchQuery.isEmpty()) {
-                                        item {
-                                            BannerCarousel(
-                                                imageIds = listOf(
-                                                    R.drawable.poke1, R.drawable.poke2, R.drawable.poke3,
-                                                    R.drawable.poke4, R.drawable.poke5, R.drawable.poke6,
-                                                    R.drawable.poke7, R.drawable.poke8, R.drawable.poke9,
-                                                    R.drawable.poke10, R.drawable.poke11, R.drawable.poke12
-                                                )
-                                            )
-                                            Spacer(modifier = Modifier.height(8.dp))
+
+                            // Se terminou de carregar e não há nada no banco
+                            isNotLoading && pagingItems.itemCount == 0 -> {
+                                item(key = "empty_view") {
+                                    EmptySearchResult(
+                                        query = searchQuery.ifEmpty { "Pokémon" },
+                                        onClearFilters = { viewModel.onSearchChanged("") }
+                                    )
+                                }
+                            }
+
+                            // LISTA COM DADOS E ‘SCROLL’ INFINITO
+                            else -> {
+                                items(
+                                    count = pagingItems.itemCount,
+                                    // pokemonId como key é vital para manter a posição do ‘scroll’
+                                    key = pagingItems.itemKey { pokemon: PokemonEntity -> pokemon.pokemonId }
+                                ) { index ->
+                                    val pokemon = pagingItems[index]
+
+                                    // GATILHO ESTABILIZADO: Sincroniza com o count real da lista
+                                    LaunchedEffect(index) {
+                                        if (index >= pagingItems.itemCount - 3 && searchQuery.isEmpty()) {
+                                            viewModel.fetchMorePokemons(pagingItems.itemCount)
                                         }
                                     }
 
-                                    items(
-                                        items = filteredPokemons,
-                                        key = { it.pokemonId }
-                                    ) { pokemon ->
-                                        PokemonItem(
-                                            pokemon = pokemon,
-                                            onItemClick = onPokemonClick
-                                        )
-                                    }
+                                    pokemon?.let {
+                                        val matchesType = selectedType == null ||
+                                                it.tipoPrincipal.equals(selectedType, ignoreCase = true)
 
-                                    if (searchQuery.isEmpty() && filteredPokemons.isNotEmpty()) {
-                                        item {
-                                            Box(
-                                                Modifier.fillMaxWidth().padding(16.dp),
-                                                contentAlignment = Alignment.Center
-                                            ) {
-                                                CircularProgressIndicator(
-                                                    modifier = Modifier.size(32.dp),
-                                                    color = Color(0xFFE91E63)
+                                        if (matchesType) {
+                                            // animateItem() remove o efeito de piscar
+                                            Box(Modifier.animateItem()) {
+                                                PokemonItem(
+                                                    pokemon = it,
+                                                    onItemClick = onPokemonClick
                                                 )
                                             }
                                         }
                                     }
+                                }
+                            }
+                        }
+
+                        // 3. INDICADOR DE CARREGAMENTO NO RODAPÉ (PAGING APPEND)
+                        if (pagingItems.loadState.append is LoadState.Loading) {
+                            item(key = "loading_append") {
+                                Box(Modifier.fillMaxWidth().padding(24.dp), Alignment.Center) {
+                                    CircularProgressIndicator(
+                                        color = Color(0xFFE91E63),
+                                        strokeWidth = 2.dp
+                                    )
                                 }
                             }
                         }
@@ -203,7 +190,6 @@ fun PokemonListScreen(
         }
     }
 }
-
 @Composable
 fun BannerCarousel(imageIds: List<Int>) {
     val pagerState = rememberPagerState(pageCount = { imageIds.size })
@@ -239,12 +225,11 @@ fun BannerCarousel(imageIds: List<Int>) {
                     painter = painterResource(id = imageIds[page]),
                     contentDescription = "Banner",
                     modifier = Modifier.fillMaxSize()
-                        .clip(RoundedCornerShape(16.dp)),
+                        .clip(shape = RoundedCornerShape(16.dp)),
                     contentScale = ContentScale.FillBounds
                 )
             }
         }
-
 
         Row(
             Modifier
@@ -252,6 +237,7 @@ fun BannerCarousel(imageIds: List<Int>) {
                 .padding(bottom = 12.dp)
                 .background(Color.Black.copy(alpha = 0.4f), CircleShape)
                 .padding(horizontal = 12.dp, vertical = 4.dp),
+
             Arrangement.Center
         ) {
             repeat(imageIds.size) { iteration ->
@@ -310,7 +296,10 @@ fun SearchBarTop(
 }
 
 @Composable
-fun EmptySearchResult(query: String) {
+fun EmptySearchResult(
+    query: String,
+    onClearFilters: () -> Unit
+) {
     Column(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.Center,
@@ -323,5 +312,14 @@ fun EmptySearchResult(query: String) {
             fontWeight = FontWeight.Bold,
             style = MaterialTheme.typography.headlineSmall
         )
+        Spacer(modifier = Modifier.height(24.dp))
+
+        Button(
+            onClick = onClearFilters,
+            colors = ButtonDefaults.buttonColors(containerColor = Color(0xFFE91E63)),
+            shape = RoundedCornerShape(12.dp)
+        ) {
+            Text("Voltar para aba Todos", color = Color.White)
+        }
     }
 }
