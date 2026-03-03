@@ -52,7 +52,8 @@ fun PokemonDto.toEvolutionEntities(): List<PokemonEvolutionEntity> {
                     PokemonEvolutionEntity(
                         pokemonId = this.id,
                         pokemonEvolucaoId = extractedId,
-                        nomeEvolucao = namedResource.name.replaceFirstChar { it.uppercase() }
+                        nomeEvolucao = namedResource.name.replaceFirstChar { it.uppercase() },
+                        urlImagem = this.sprites.imageUrl
                     )
                 )
             }
