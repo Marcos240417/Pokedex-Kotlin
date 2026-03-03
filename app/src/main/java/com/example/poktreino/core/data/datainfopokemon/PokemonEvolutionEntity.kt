@@ -9,5 +9,6 @@ data class PokemonEvolutionEntity(
     val id: Int = 0,
     val pokemonId: Int,
     val pokemonEvolucaoId: Int,
-    val nomeEvolucao: String
+    val nomeEvolucao: String,
+    val urlImagem: String,
 )
