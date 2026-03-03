@@ -1,5 +1,6 @@
 package com.example.poktreino.core.data.dao
 
+import androidx.paging.PagingSource
 import androidx.room.Dao
 import androidx.room.Insert
 import androidx.room.OnConflictStrategy
@@ -9,7 +10,7 @@ import com.example.poktreino.core.data.datainfopokemon.PokemonEvolutionEntity
 import com.example.poktreino.core.data.datainfopokemon.PokemonMoveEntity
 import com.example.poktreino.core.data.datainfopokemon.PokemonStatEntity
 import com.example.poktreino.core.data.datalocal.PokemonEntity
-import com.example.poktreino.core.data.datalocal.PokemonWithDetails // Import do Relacionamento
+import com.example.poktreino.core.data.datalocal.PokemonWithDetails
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -48,6 +49,16 @@ interface PokemonDao {
     fun getPokemonWithDetails(id: Int): Flow<PokemonWithDetails?>
 
     @Query("SELECT * FROM pokemons WHERE pokemonId = :id")
-    suspend fun getPokemonById(id: Int): PokemonEntity?
+    suspend fun getPokemonById(id: Int): PokemonEntity
 
+    @Query("""
+    SELECT * FROM pokemons 
+    WHERE (:query = '' OR nome LIKE '%' || :query || '%' 
+    OR CAST(pokemonId AS TEXT) LIKE :query || '%')
+    ORDER BY pokemonId ASC
+    """)
+    fun getPokemonPagingSource(query: String): PagingSource<Int, PokemonEntity>
+
+    @Query("DELETE FROM pokemons")
+    suspend fun clearAll()
 }
