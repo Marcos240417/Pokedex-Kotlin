@@ -65,6 +65,7 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.material3)
     implementation(libs.androidx.compose.runtime)
+    implementation(libs.androidx.paging.common)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
@@ -109,5 +110,20 @@ dependencies {
     androidTestImplementation(libs.androidx.espresso.core)
     testImplementation(libs.kotlinx.coroutines.test)
     testImplementation(libs.room.testing)
+
+
+    // Paging 3 - A biblioteca principal
+
+    implementation(libs.androidx.paging.runtime.ktx)
+
+    // Suporte do Compose para Paging 3
+    implementation(libs.androidx.paging.compose)
+
+    // Integração do Room com Paging 3
+    // (Importante para que o DAO consiga retornar PagingSource)
+    implementation(libs.room.paging)
+
+    implementation(libs.androidx.palette)
+
 }
 
